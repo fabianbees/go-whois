@@ -16,6 +16,8 @@ import (
 	"github.com/shlin168/go-whois/whois/utils"
 
 	"github.com/sirupsen/logrus"
+
+	"github.com/likexian/whois"
 )
 
 const (
@@ -481,6 +483,25 @@ func (c *Client) QueryIP(ctx context.Context, ip string, whoisServers ...string)
 	if err != nil {
 		return nil, err
 	}
+
+	// if parsed whois does not contain any contact object, query again with whois package
+	if pip.ParsedWhois.Contacts == nil && pip.ParsedWhois.Networks == nil {
+		fmt.Println("Query again with whois package")
+
+		raw_text, whois_err := whois.Whois(ip)
+
+		pip, err = c.ParseIP(ip, NewRaw(raw_text, c.arinServAddr[:strings.Index(c.arinServAddr, ":")]))
+		
+		if whois_err != nil {
+			return nil, whois_err
+		}
+
+		if err != nil {
+			return nil, err
+		}
+	}
+
+
 	return pip, nil
 }
 

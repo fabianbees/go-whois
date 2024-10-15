@@ -54,6 +54,7 @@ type WhoisResp struct {
 	Notes struct {
 		OriginalQuery string   `json:"query"`
 		PublicSuffixs []string `json:"public_suffixs,omitempty"`
+		ServedBy	  string   `json:"served_by"`
 		Error         string   `json:"error,omitempty"`
 	} `json:"notes"`
 	IP          []IP   `json:"ip,omitempty"`
@@ -66,10 +67,13 @@ type WhoisIPResp struct {
 	Type  string     `json:"type"`
 	Notes struct {
 		OriginalQuery string `json:"query"`
+		ServedBy       string `json:"served_by"`
 		Error         string `json:"error,omitempty"`
 	} `json:"notes"`
 	QueriedDate string `json:"queried_date"`
 }
+
+var served_by = GetLocalIP().String()
 
 // WhoisHandler handles POST requests to 'apiWhoisPath'
 func WhoisHandler(cli *whois.Client, resolver *Resolver, acsLogger logrus.FieldLogger) http.HandlerFunc {
@@ -125,6 +129,7 @@ func WhoisHandler(cli *whois.Client, resolver *Resolver, acsLogger logrus.FieldL
 			wResp := &WhoisIPResp{Whois: wBase}
 			wResp.Type = qType
 			wResp.Notes.OriginalQuery = wr.Query
+			wResp.Notes.ServedBy = served_by
 			wResp.QueriedDate = utils.UTCNow().Format(wd.WhoisTimeFmt)
 			resp.Header().Set("Content-Type", "application/json")
 			if status.RespType == whois.RespTypeNotFound {
@@ -171,6 +176,7 @@ func WhoisHandler(cli *whois.Client, resolver *Resolver, acsLogger logrus.FieldL
 		wResp := &WhoisResp{Whois: wBase}
 		wResp.Type = qType
 		wResp.Notes.OriginalQuery = wr.Query
+		wResp.Notes.ServedBy = served_by
 		wResp.Notes.PublicSuffixs = pslist
 		wResp.QueriedDate = utils.UTCNow().Format(wd.WhoisTimeFmt)
 		if status.RespType == whois.RespTypeNotFound {
@@ -199,4 +205,16 @@ func WhoisHandler(cli *whois.Client, resolver *Resolver, acsLogger logrus.FieldL
 		json.NewEncoder(resp).Encode(wResp)
 		return
 	}
+}
+
+func GetLocalIP() net.IP {
+    conn, err := net.Dial("udp", "8.8.8.8:80")
+    if err != nil {
+        //log.Fatal(err)
+    }
+    defer conn.Close()
+
+    localAddress := conn.LocalAddr().(*net.UDPAddr)
+
+    return localAddress.IP
 }
